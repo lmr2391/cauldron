@@ -171,16 +171,19 @@ class ProjectStep(object):
 
         :return:
         """
+        kwargs = dict()
+        display = self.project.settings.fetch('display', dict())
 
-        code_file_path = os.path.join(
-            self.project.source_directory,
-            self.filename
-        )
-        code = dict(
-            filename=self.filename,
-            path=code_file_path,
-            code=render.code_file(code_file_path)
-        )
+        if display.get('code', True):
+            code_file_path = os.path.join(
+                self.project.source_directory,
+                self.filename
+            )
+            kwargs['code'] = dict(
+                filename=self.filename,
+                path=code_file_path,
+                code=render.code_file(code_file_path)
+            )
 
         if not self.is_running:
             # If no longer running, make sure to flush the stdout buffer so
@@ -211,16 +214,16 @@ class ProjectStep(object):
             body.find('<li') != -1
         )
 
-        std_err = (
-            self.report.read_stderr()
-            if self.is_running else
-            self.report.flush_stderr()
-        ).strip('\n').rstrip()
+        if display.get('errors', True):
+            kwargs['std_err'] = (
+                self.report.read_stderr()
+                if self.is_running else
+                self.report.flush_stderr()
+            ).strip('\n').rstrip()
 
         dom = templating.render_template(
             'step-body.html',
             last_display_update=self.report.last_update_time,
-            code=code,
             body=body,
             has_body=has_body,
             id=self.definition.name,
@@ -234,7 +237,7 @@ class ProjectStep(object):
             progress=int(round(max(0, min(100, 100 * self.progress)))),
             sub_progress_message=self.sub_progress_message,
             sub_progress=int(round(max(0, min(100, 100 * self.sub_progress)))),
-            std_err=std_err
+            **kwargs
         )
 
         if not self.is_running:
